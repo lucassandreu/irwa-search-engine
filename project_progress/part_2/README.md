@@ -111,15 +111,9 @@ Follow these step-by-step instructions to reproduce results from the notebook.
 6. Generate annotation template for human judges (Part 3a)
    - Run the cell that writes `data/annotations/queries_label_template.csv`. This uses the top-K from the ranker and must be labeled manually (1/0).
 
-7. Evaluate with labeled judgments (Part 3b / 3c)
-   - After human labels are filled into `data/annotations/queries_label_template.csv`, run the evaluation cells.
-   - Evaluation functions:
-     - [`precision_at_k`](project_progress/part_2/part2_code.ipynb)
-     - [`evaluate_query_at_k`](project_progress/part_2/part2_code.ipynb)
-     - [`evaluate_multiple_at_k`](project_progress/part_2/part2_code.ipynb)
-   - The notebook expects either:
-     - a CSV `data/validation_labels.csv` in the format (query_id, pid, labels) for quick evaluation, or
-     - the annotated `data/annotations/queries_label_template.csv` for your queries.
+7. Evaluate with labeled judgments (Expert judges — Part b / Part c)
+   - IMPORTANT: To run the evaluation that reads validation labels you must place the CSV file `validation_labels.csv` in the `data/` folder (path: `data/validation_labels.csv`). The notebook will load this file for quick automatic evaluation. The expected CSV format is: header including `query_id`, `pid`, `labels` (1/0).
+   - Alternatively, fill `data/annotations/queries_label_template.csv` manually and run the labeled evaluation cells.
    - Ablation experiments save to:
      - `data/index/ablation_results.json`
      - `data/index/ablation_results.csv`
@@ -177,7 +171,7 @@ After running the notebook you should find:
 
 - Annotation templates & labels:
   - `data/annotations/queries_label_template.csv` (to be labeled)
-  - Optionally: `data/validation_labels.csv` (if provided by instructor)
+  - `data/validation_labels.csv` (if you use the quick evaluation flow)
 
 - Evaluation results:
   - `data/index/eval_my_queries.json`
@@ -208,4 +202,5 @@ Console output will show vocabulary size, number of docs loaded, top-ranked exam
 - Large candidate sets:
   - Ranking with the full candidate set can be slow. The notebook uses an AND pre-filter option (`search_tfidf_and`) to reduce candidates.
 
----
+- Missing validation labels:
+  - If you plan to run the quick automatic evaluation, place `validation_labels.csv` at `data/validation_labels.csv`. If missing, the notebook will raise `FileNotFoundError` when loading validation labels.
