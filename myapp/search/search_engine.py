@@ -2,6 +2,7 @@ import random
 import numpy as np
 
 from myapp.search.objects import Document
+from myapp.search.algorithms import search_in_corpus
 
 
 def dummy_search(corpus: dict, search_id, num_results=20):
@@ -28,9 +29,14 @@ class SearchEngine:
     def search(self, search_query, search_id, corpus):
         print("Search query:", search_query)
 
-        results = []
-        ### You should implement your search logic here:
-        results = dummy_search(corpus, search_id)  # replace with call to search algorithm
+        # REAL SEARCH (BM25 default)
+        results = search_in_corpus(
+            query=search_query,
+            search_id=search_id,
+            corpus=corpus,
+            method="bm25",   # you can later change via UI dropdown
+            k=20,
+            use_and=True
+        )
 
-        # results = search_in_corpus(search_query)
         return results
