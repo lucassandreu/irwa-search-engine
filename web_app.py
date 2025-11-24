@@ -65,6 +65,10 @@ def log_request():
 # Home URL "/"
 @app.route('/')
 def index():
+
+    if "session_id" not in session:
+        session["session_id"] = str(time.time()).replace(".", "")
+
     print("starting home url /...")
 
     # flask server creates a session by persisting a cookie in the user's browser.
@@ -105,7 +109,16 @@ def search_form_post():
     session['last_search_time'] = time.time()
 
     # generate search_id + automatically register query terms
-    search_id = analytics_data.save_query_terms(search_query)
+    #search_id = analytics_data.save_query_terms(search_query)
+    search_id = analytics_data.save_query_terms(
+        terms=search_query,
+        ip=request.remote_addr,
+        user_agent=request.headers.get("User-Agent", ""),
+        browser=request.user_agent.browser,
+        session_id=session.get("session_id")
+    )
+
+
     session["last_search_id"] = search_id
 
     # ---------------------------------------------------------
@@ -147,6 +160,7 @@ def doc_details():
 
     doc_obj = corpus.get(pid)
 
+    """
     # ---------------------------------------------------------
     # Register click analytics
     # ---------------------------------------------------------
@@ -155,6 +169,21 @@ def doc_details():
         search_id=int(search_id) if search_id else -1,
         rank=None
     )
+    """
+
+    # ---------------------------------------------------------
+    # Register click analytics + query + ranking
+    # ---------------------------------------------------------
+    analytics_data.register_click(
+        pid=pid,
+        search_id=int(search_id) if search_id else -1,
+        rank=getattr(doc_obj, "ranking", None),
+        query=session.get("last_search_query"),
+        ip=request.remote_addr,
+        user_agent=request.headers.get("User-Agent", ""),
+        session_id=session.get("session_id")
+    )
+
 
     # store click time to compute dwell later
     session["last_click_time"] = time.time()
@@ -213,7 +242,6 @@ def plot_top_queries():
 @app.route('/plot_top_terms', methods=['GET'])
 def plot_top_terms():
     return analytics_data.plot_top_terms()
-
 
 
 if __name__ == "__main__":
