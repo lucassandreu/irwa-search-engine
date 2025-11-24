@@ -10,18 +10,65 @@
         </div>
     {% endif %}
     <hr>
+    
     {% for item in results_list %}
         <div class="pb-3">
-            <div class="doc-title">
-                <a href="{{ item.url }}">{{ item.title }}...
-                </a>
-            </div>
-            <div class="doc-desc">
-                {{ item.doc_date }} — {{ item.description }}
-            </div>
-
+    
+        <!-- Title (internal details link) -->
+        <div class="doc-title">
+            <a href="{{ item.url }}">
+                {{ item.title }}
+            </a>
         </div>
 
+        <!-- Description -->
+        <div class="doc-desc text-muted">
+            {{ item.description }}
+        </div>
+
+        <!-- Metadata row -->
+        <div class="mt-1">
+            {% if item.selling_price %}
+                <span><strong>Price:</strong> ₹{{ item.selling_price }}</span>
+            {% endif %}
+
+            {% if item.actual_price %}
+                <span class="ml-2 text-muted">
+                    <del>₹{{ item.actual_price }}</del>
+                </span>
+            {% endif %}
+
+            {% if item.discount %}
+                <span class="ml-2 text-success">
+                    <strong>{{ item.discount }}% OFF</strong>
+                </span>
+            {% endif %}
+        </div>
+
+        <div class="mt-1">
+            {% if item.average_rating %}
+                <span><strong>Rating:</strong> {{ item.average_rating }}/5 ⭐</span>
+            {% endif %}
+
+            {% if item.out_of_stock %}
+                <span class="ml-2 text-danger"><strong>Out of stock</strong></span>
+            {% else %}
+                <span class="ml-2 text-success"><strong>In stock</strong></span>
+            {% endif %}
+        </div>
+
+        <!-- Original URL -->
+        {% if item.source_url %}
+            <div class="mt-1">
+                <a href="{{ item.source_url }}" target="_blank" class="small">
+                    Open in original store ↗
+                </a>
+            </div>
+        {% endif %}
+
+    </div>
+    <hr>
     {% endfor %}
+
 {% endblock %}
 

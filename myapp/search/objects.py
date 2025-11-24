@@ -103,11 +103,22 @@ class ResultItem(BaseModel):
     pid: str
     title: str
     description: Optional[str] = None
-    url: Optional[str] = None
+
+    # Required by Part 4 results page
+    selling_price: Optional[float] = None
+    discount: Optional[float] = None
+    actual_price: Optional[float] = None
+    average_rating: Optional[float] = None
+    out_of_stock: Optional[bool] = None
+
+    # Links
+    url: Optional[str] = None          # internal details link
+    source_url: Optional[str] = None   # original Flipkart URL
+
     ranking: Optional[float] = None
 
     def __str__(self) -> str:
         return self.model_dump_json(indent=2)
-    
+
     def to_json(self):
         return self.model_dump_json()

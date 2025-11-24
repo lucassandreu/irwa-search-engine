@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(REPO_ROOT / "project_progress"))
 from utils.preprocessing import preprocess_text_field
 
-from myapp.search.objects import Document
+from myapp.search.objects import Document, ResultItem
 
 
 # =========================
@@ -211,10 +211,10 @@ def search_in_corpus(
     method: str = "bm25",
     k: int = 20,
     use_and: bool = True
-) -> List[Document]:
+) -> List[ResultItem]:
     """
-    Returns top-k Documents from corpus with ranking score put into Document.ranking.
-    Also adds details URL expected by templates.
+    Returns top-k ResultItem objects (safe for UI rendering).
+    Each item includes ranking + product fields + internal + source URLs.
     """
     q_terms = _query_tokens(query)
 
@@ -240,14 +240,30 @@ def search_in_corpus(
 
     ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:k]
 
-    results: List[Document] = []
+    results: List[ResultItem] = []
     for did, score in ranked:
         pid = docs_raw[did].get("pid") or docid_to_pid.get(str(did))
         doc_obj = corpus.get(pid)
-        if doc_obj:
-            # attach expected fields for UI
-            doc_obj.url = f"doc_details?pid={pid}&search_id={search_id}"
-            doc_obj.ranking = float(score)
-            results.append(doc_obj)
+        if not doc_obj:
+            continue
+        results.append(
+            ResultItem(
+                pid=doc_obj.pid,
+                title=doc_obj.title,
+                description=doc_obj.description,
+                selling_price=doc_obj.selling_price,
+                discount=doc_obj.discount,
+                actual_price=doc_obj.actual_price,
+                average_rating=doc_obj.average_rating,
+                out_of_stock=doc_obj.out_of_stock,
+                ranking=float(score),
+
+                # internal link to your details page
+                url=f"/doc_details?pid={pid}&search_id={search_id}",
+
+                # original Flipkart link
+                source_url=doc_obj.url
+            )
+        )
 
     return results

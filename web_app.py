@@ -1,16 +1,17 @@
 import os
+import time
 from json import JSONEncoder
 
 import httpagentparser  # for getting the user agent as json
-from flask import Flask, render_template, session
-from flask import request
+from flask import Flask, render_template, session, request
 
-from myapp.analytics.analytics_data import AnalyticsData, ClickedDoc
+from myapp.analytics.analytics_data import AnalyticsData
 from myapp.search.load_corpus import load_corpus
 from myapp.search.objects import Document, StatsDocument
 from myapp.search.search_engine import SearchEngine
 from myapp.generation.rag import RAGGenerator
 from dotenv import load_dotenv
+
 load_dotenv()  # take environment variables from .env
 
 
@@ -29,6 +30,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
 # open browser dev tool to see the cookies
 app.session_cookie_name = os.getenv("SESSION_COOKIE_NAME")
+
 # instantiate our search engine
 search_engine = SearchEngine()
 # instantiate our in memory persistence
@@ -41,8 +43,23 @@ full_path = os.path.realpath(__file__)
 path, filename = os.path.split(full_path)
 file_path = path + "/" + os.getenv("DATA_FILE_PATH")
 corpus = load_corpus(file_path)
-# Log first element of corpus to verify it loaded correctly:
+
 print("\nCorpus is loaded... \n First element:\n", list(corpus.values())[0])
+
+
+# ---------------------------------------------------------
+# Log every request automatically (Part 4 analytics)
+# ---------------------------------------------------------
+@app.before_request
+def log_request():
+    analytics_data.register_request(
+        path=request.path,
+        method=request.method,
+        user_agent=request.headers.get("User-Agent", ""),
+        ip=request.remote_addr,
+        session_id=session.get("session_id"),
+        ts=time.time()
+    )
 
 
 # Home URL "/"
@@ -51,7 +68,6 @@ def index():
     print("starting home url /...")
 
     # flask server creates a session by persisting a cookie in the user's browser.
-    # the 'session' object keeps data between multiple requests. Example:
     session['some_var'] = "Some value that is kept in session"
 
     user_agent = request.headers.get('User-Agent')
@@ -62,18 +78,39 @@ def index():
 
     print("Remote IP: {} - JSON user browser {}".format(user_ip, agent))
     print(session)
+
     return render_template('index.html', page_title="Welcome")
 
 
 @app.route('/search', methods=['POST'])
 def search_form_post():
-    
     search_query = request.form['search-query']
 
+    # ---------------------------------------------------------
+    # If user had clicked before, compute dwell time
+    # ---------------------------------------------------------
+    if "last_click_time" in session and "last_clicked_pid" in session:
+        dwell = time.time() - session["last_click_time"]
+        analytics_data.register_dwell(
+            pid=session["last_clicked_pid"],
+            search_id=session.get("last_search_id", -1),
+            dwell_seconds=dwell
+        )
+        session.pop("last_click_time", None)
+        session.pop("last_clicked_pid", None)
+        session.pop("last_search_id", None)
+
+    # store latest query in session
     session['last_search_query'] = search_query
+    session['last_search_time'] = time.time()
 
+    # generate search_id + automatically register query terms
     search_id = analytics_data.save_query_terms(search_query)
+    session["last_search_id"] = search_id
 
+    # ---------------------------------------------------------
+    # Search
+    # ---------------------------------------------------------
     results = search_engine.search(search_query, search_id, corpus)
 
     # generate RAG response based on user query and retrieved results
@@ -85,77 +122,98 @@ def search_form_post():
 
     print(session)
 
-    return render_template('results.html', results_list=results, page_title="Results", found_counter=found_count, rag_response=rag_response)
+    return render_template(
+        'results.html',
+        results_list=results,
+        page_title="Results",
+        found_counter=found_count,
+        rag_response=rag_response
+    )
 
 
 @app.route('/doc_details', methods=['GET'])
 def doc_details():
     """
-    Show document details page
-    ### Replace with your custom logic ###
+    Show document details page + register click analytics
     """
-
-    # getting request parameters:
-    # user = request.args.get('user')
     print("doc details session: ")
     print(session)
 
-    res = session["some_var"]
-    print("recovered var from session:", res)
+    pid = request.args.get("pid")
+    search_id = request.args.get("search_id")
 
-    # get the query string parameters from request
-    clicked_doc_id = request.args["pid"]
-    print("click in id={}".format(clicked_doc_id))
+    if pid is None:
+        return render_template("doc_details.html", page_title="Document details", doc=None)
 
-    # store data in statistics table 1
-    if clicked_doc_id in analytics_data.fact_clicks.keys():
-        analytics_data.fact_clicks[clicked_doc_id] += 1
-    else:
-        analytics_data.fact_clicks[clicked_doc_id] = 1
+    doc_obj = corpus.get(pid)
 
-    print("fact_clicks count for id={} is {}".format(clicked_doc_id, analytics_data.fact_clicks[clicked_doc_id]))
-    print(analytics_data.fact_clicks)
-    return render_template('doc_details.html')
+    # ---------------------------------------------------------
+    # Register click analytics
+    # ---------------------------------------------------------
+    analytics_data.register_click(
+        pid=pid,
+        search_id=int(search_id) if search_id else -1,
+        rank=None
+    )
+
+    # store click time to compute dwell later
+    session["last_click_time"] = time.time()
+    session["last_clicked_pid"] = pid
+    session["last_search_id"] = int(search_id) if search_id else -1
+
+    return render_template(
+        'doc_details.html',
+        page_title="Document details",
+        doc=doc_obj
+    )
 
 
 @app.route('/stats', methods=['GET'])
 def stats():
     """
-    Show simple statistics example. ### Replace with yourdashboard ###
-    :return:
+    Show clicked docs ordered by number of clicks
     """
-
     docs = []
-    for doc_id in analytics_data.fact_clicks:
-        row: Document = corpus[doc_id]
-        count = analytics_data.fact_clicks[doc_id]
-        doc = StatsDocument(pid=row.pid, title=row.title, description=row.description, url=row.url, count=count)
+    for pid in analytics_data.fact_clicks:
+        row: Document = corpus[pid]
+        count = analytics_data.fact_clicks[pid]
+        doc = StatsDocument(
+            pid=row.pid,
+            title=row.title,
+            description=row.description,
+            url=row.url,
+            count=count
+        )
         docs.append(doc)
-    
-    # simulate sort by ranking
+
     docs.sort(key=lambda doc: doc.count, reverse=True)
-    return render_template('stats.html', clicks_data=docs)
+    return render_template('stats.html', clicks_data=docs, page_title="Stats")
 
 
 @app.route('/dashboard', methods=['GET'])
 def dashboard():
-    visited_docs = []
-    for doc_id in analytics_data.fact_clicks.keys():
-        d: Document = corpus[doc_id]
-        doc = ClickedDoc(doc_id, d.description, analytics_data.fact_clicks[doc_id])
-        visited_docs.append(doc)
-
-    # simulate sort by ranking
-    visited_docs.sort(key=lambda doc: doc.counter, reverse=True)
-
-    for doc in visited_docs: print(doc)
-    return render_template('dashboard.html', visited_docs=visited_docs)
+    """
+    Dashboard summary.
+    Your dashboard.html can display stats['top_queries'], stats['avg_dwell'], etc.
+    """
+    stats = analytics_data.summary_stats()
+    return render_template('dashboard.html', page_title="Dashboard", stats=stats)
 
 
-# New route added for generating an examples of basic Altair plot (used for dashboard)
+# Altair plot for views per document (used in dashboard iframe)
 @app.route('/plot_number_of_views', methods=['GET'])
 def plot_number_of_views():
     return analytics_data.plot_number_of_views()
+
+
+@app.route('/plot_top_queries', methods=['GET'])
+def plot_top_queries():
+    return analytics_data.plot_top_queries()
+
+@app.route('/plot_top_terms', methods=['GET'])
+def plot_top_terms():
+    return analytics_data.plot_top_terms()
+
 
 
 if __name__ == "__main__":
