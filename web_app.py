@@ -222,11 +222,22 @@ def stats():
 @app.route('/dashboard', methods=['GET'])
 def dashboard():
     """
-    Dashboard summary.
-    Your dashboard.html can display stats['top_queries'], stats['avg_dwell'], etc.
+    Dashboard summary with advanced analytics.
     """
     stats = analytics_data.summary_stats()
-    return render_template('dashboard.html', page_title="Dashboard", stats=stats)
+    funnel = analytics_data.funnel_metrics()
+    paths = analytics_data.session_paths()
+    intents = analytics_data.intent_clusters()
+
+    return render_template(
+        'dashboard.html',
+        page_title="Dashboard",
+        stats=stats,
+        funnel=funnel,
+        paths=paths,
+        intents=intents
+    )
+
 
 
 # Altair plot for views per document (used in dashboard iframe)
@@ -242,6 +253,16 @@ def plot_top_queries():
 @app.route('/plot_top_terms', methods=['GET'])
 def plot_top_terms():
     return analytics_data.plot_top_terms()
+
+@app.route('/plot_search_hourly', methods=['GET'])
+def plot_search_hourly():
+    return analytics_data.plot_searches_per_hour()
+
+@app.route('/plot_term_heatmap', methods=['GET'])
+def plot_term_heatmap():
+    return analytics_data.plot_term_heatmap()
+
+
 
 
 if __name__ == "__main__":

@@ -212,6 +212,88 @@ class AnalyticsData:
         ).properties(title="Top Query Terms")
 
         return chart.to_html()
+    
+    def funnel_metrics(self):
+        """Compute search → click → dwell funnel."""
+        total_searches = len(self.queries)
+        total_clicks = len(self.clicks)
+        total_dwell = sum(1 for d in self.dwell_times if d["dwell_seconds"] >= 5)
+
+        return {
+            "searches": total_searches,
+            "clicks": total_clicks,
+            "dwell_over_5s": total_dwell,
+            "ctr": round(total_clicks / total_searches, 3) if total_searches else 0,
+            "engagement_rate": round(total_dwell / total_searches, 3) if total_searches else 0
+        }
+
+
+    def session_paths(self):
+        """Return the sequence of actions for each session."""
+        paths = {}
+        for r in self.requests:
+            sid = r.get("session_id", "unknown")
+            paths.setdefault(sid, [])
+            paths[sid].append(r["path"])
+        return paths
+    
+
+    def intent_clusters(self):
+        """Group queries by shared terms."""
+        cluster_map = {}
+        for q in self.queries:
+            key = " ".join(sorted(set(q["terms"])))  # normalize
+            cluster_map.setdefault(key, 0)
+            cluster_map[key] += 1
+        return sorted(cluster_map.items(), key=lambda x: -x[1])
+    
+
+    def plot_searches_per_hour(self):
+        df = pd.DataFrame(self.queries)
+        if df.empty:
+            df = pd.DataFrame([{"hour": 0, "count": 0}])
+        else:
+            df["hour"] = df["ts"].apply(lambda t: time.strftime("%H", time.localtime(t)))
+            df = df.groupby("hour").size().reset_index(name="count")
+
+        chart = alt.Chart(df).mark_line(point=True).encode(
+            x="hour:N",
+            y="count:Q"
+        ).properties(title="Searches per Hour of Day")
+
+        return chart.to_html()
+    
+
+    def plot_term_heatmap(self, k=20):
+        from itertools import product
+
+        terms = [t for q in self.queries for t in q["terms"]]
+        top_terms = [t for t, _ in Counter(terms).most_common(k)]
+
+        # build co-occurrence matrix
+        pairs = Counter()
+        for q in self.queries:
+            unique = list(set(q["terms"]))
+            for t1, t2 in product(unique, unique):
+                pairs[(t1, t2)] += 1
+
+        data = []
+        for t1 in top_terms:
+            for t2 in top_terms:
+                data.append({"t1": t1, "t2": t2, "count": pairs[(t1, t2)]})
+
+        df = pd.DataFrame(data)
+
+        chart = alt.Chart(df).mark_rect().encode(
+            x="t1:N",
+            y="t2:N",
+            color="count:Q"
+        ).properties(title="Term Co-occurrence Heatmap")
+
+        return chart.to_html()
+
+
+
 
 
 class ClickedDoc:
