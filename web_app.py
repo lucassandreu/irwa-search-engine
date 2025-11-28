@@ -47,9 +47,7 @@ corpus = load_corpus(file_path)
 print("\nCorpus is loaded... \n First element:\n", list(corpus.values())[0])
 
 
-# ---------------------------------------------------------
 # Log every request automatically (Part 4 analytics)
-# ---------------------------------------------------------
 @app.before_request
 def log_request():
     analytics_data.register_request(
@@ -90,9 +88,7 @@ def index():
 def search_form_post():
     search_query = request.form['search-query']
 
-    # ---------------------------------------------------------
     # If user had clicked before, compute dwell time
-    # ---------------------------------------------------------
     if "last_click_time" in session and "last_clicked_pid" in session:
         dwell = time.time() - session["last_click_time"]
         analytics_data.register_dwell(
@@ -121,9 +117,7 @@ def search_form_post():
 
     session["last_search_id"] = search_id
 
-    # ---------------------------------------------------------
     # Search
-    # ---------------------------------------------------------
     results = search_engine.search(search_query, search_id, corpus)
 
     # generate RAG response based on user query and retrieved results
@@ -160,20 +154,7 @@ def doc_details():
 
     doc_obj = corpus.get(pid)
 
-    """
-    # ---------------------------------------------------------
-    # Register click analytics
-    # ---------------------------------------------------------
-    analytics_data.register_click(
-        pid=pid,
-        search_id=int(search_id) if search_id else -1,
-        rank=None
-    )
-    """
-
-    # ---------------------------------------------------------
     # Register click analytics + query + ranking
-    # ---------------------------------------------------------
     analytics_data.register_click(
         pid=pid,
         search_id=int(search_id) if search_id else -1,

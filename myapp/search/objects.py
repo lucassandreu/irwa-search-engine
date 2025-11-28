@@ -27,7 +27,7 @@ class Document(BaseModel):
     def to_json(self):
         return self.model_dump_json()
 
-    # --- Validators ---
+    # Validators
 
     @field_validator("selling_price", "actual_price", mode="before")
     def parse_price(cls, v):

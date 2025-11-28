@@ -1,4 +1,3 @@
-# myapp/analytics/analytics_data.py
 import json
 import random
 import time
@@ -30,7 +29,7 @@ class AnalyticsData:
         self.clicks: List[Dict[str, Any]] = []
         self.dwell_times: List[Dict[str, Any]] = []
 
-    # ---------- Requests ----------
+    # Requests
     def register_request(
         self,
         path: str,
@@ -49,7 +48,7 @@ class AnalyticsData:
             "session_id": session_id
         })
 
-    # ---------- Queries ----------
+    # Queries
     def register_query(
         self,
         query: str,
@@ -73,7 +72,6 @@ class AnalyticsData:
             "session_id": session_id
         })
 
-    # keep backwards compatibility with teacher code
     def save_query_terms(
         self,
         terms: str,
@@ -93,7 +91,7 @@ class AnalyticsData:
         )
         return search_id
 
-    # ---------- Clicks ----------
+    # Clicks
     def register_click(
         self,
         pid: str,
@@ -119,7 +117,7 @@ class AnalyticsData:
         # update quick stats counter
         self.fact_clicks[pid] = self.fact_clicks.get(pid, 0) + 1
 
-    # ---------- Dwell time ----------
+    # Dwell time
     def register_dwell(
         self,
         pid: str,
@@ -134,7 +132,7 @@ class AnalyticsData:
             "dwell_seconds": dwell_seconds
         })
 
-    # ---------- Dashboard helpers ----------
+    # Dashboard helpers
     def top_queries(self, k: int = 10) -> List[Tuple[str, int]]:
         counts = Counter([q["query"] for q in self.queries])
         return counts.most_common(k)
@@ -170,7 +168,7 @@ class AnalyticsData:
             "top_terms": self.top_terms(15)
         }
 
-    # ---------- Plots for dashboard ----------
+    # Plots for dashboard
     def plot_number_of_views(self):
         data = [
             {"Document ID": doc_id, "Number of Views": count}

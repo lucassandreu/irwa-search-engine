@@ -34,7 +34,7 @@ class SearchEngine:
             query=search_query,
             search_id=search_id,
             corpus=corpus,
-            method="bm25",   # you can later change via UI dropdown
+            method="bm25",
             k=20,
             use_and=True
         )

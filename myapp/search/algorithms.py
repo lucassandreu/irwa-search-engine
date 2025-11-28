@@ -1,4 +1,3 @@
-# myapp/search/algorithms.py
 import json
 import math
 from pathlib import Path
@@ -14,9 +13,7 @@ from utils.preprocessing import preprocess_text_field
 from myapp.search.objects import Document, ResultItem
 
 
-# =========================
 # Load enriched corpus + boolean index
-# =========================
 DATA_DIR = REPO_ROOT / "data"
 INDEX_DIR = DATA_DIR / "index"
 
@@ -32,10 +29,7 @@ N_DOCS = len(docs_raw)
 
 INDEXED_TEXT_FIELDS = ["title_clean", "description_clean", "metadata_clean"]
 
-
-# =========================
 # Helpers
-# =========================
 def _doc_tokens(record: Dict[str, Any], fields: Iterable[str]) -> List[str]:
     toks: List[str] = []
     for f in fields:
@@ -85,9 +79,7 @@ def _candidate_docs_or(q_terms: List[str]) -> List[int]:
     return sorted(list(cands))
 
 
-# =========================
 # Precompute TF, DF, norms
-# =========================
 term_df: Dict[str, int] = {t: len(pl) for t, pl in inverted_index.items()}
 
 doc_tf: Dict[int, Dict[str, int]] = {}
@@ -102,7 +94,7 @@ for did, rec in enumerate(docs_raw):
 avg_doc_len = sum(doc_len.values()) / max(N_DOCS, 1)
 
 
-# ---- TF-IDF (log2, no smoothing) ----
+# TF-IDF (log2, no smoothing) 
 idf_tfidf: Dict[str, float] = {}
 for t, df in term_df.items():
     idf_tfidf[t] = math.log2(N_DOCS / df) if df > 0 else 0.0
@@ -124,7 +116,7 @@ for did, tf_map in doc_tf.items():
     doc_norms[did] = math.sqrt(sq) if sq > 0 else 0.0
 
 
-# ---- BM25 ----
+# BM25
 idf_bm25: Dict[str, float] = {}
 for t, df in term_df.items():
     idf_bm25[t] = math.log((N_DOCS - df + 0.5) / (df + 0.5) + 1.0)
@@ -133,9 +125,7 @@ k1 = 1.5
 b = 0.75
 
 
-# =========================
 # Core scoring functions
-# =========================
 def _tfidf_cosine_scores(q_terms: List[str], cand_ids: List[int]) -> Dict[int, float]:
     if not cand_ids:
         return {}
@@ -201,9 +191,7 @@ def _numeric_boost(rec: Dict[str, Any]) -> float:
     return boost * stock_factor
 
 
-# =========================
 # Public function used by SearchEngine
-# =========================
 def search_in_corpus(
     query: str,
     search_id: int,

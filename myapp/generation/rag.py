@@ -141,7 +141,7 @@ You are an expert product advisor helping users choose the best option from retr
 
             generation = chat_completion.choices[0].message.content.strip()
 
-            # Extra guard: if the model drifted, fallback cleanly
+            # if the model drifted, fallback cleanly
             if not generation:
                 return "There are no good products that fit the request based on the retrieved results."
 
